@@ -39,7 +39,6 @@ f = sdpvar(nSteps,1);
 %% Speed
 v = sdpvar(nSteps,1);
 vnom = TrackData.v_max;
-
 fnom = 80000/vnom;
 %% Time
 t = sdpvar(nSteps,1);
@@ -50,9 +49,13 @@ tnom = 0.75;
 fi = sdpvar(nSteps,1);
 finom = fnom;
 
-%% Battery setup rint - forces
+%% normalized capacity force
 fba = sdpvar(nSteps,1);
 fbanom = fnom;
+
+%% Battery setup rint - forces
+% I = sdpvar(nSteps,1);
+% Inom = 50;
 
 %% voltage setup
 if i*3.7>= 414.5
@@ -127,21 +130,26 @@ constraint = [constraint; cone([t*tnom/snom-f*fnom+fi*finom, 2*sqrt(a)*f*fnom, .
 % Pba=vol*I*Inom+I^2*Inom^2*R;
 % Fba=Pba*t*tnom/snom;
 
+
+% constraint = [constraint; fi.*snom./(t*tnom)*finom>=vol*I*Inom-I*Inom*R^2]; 
+% constraint = [constraint; fi*finom*snom<=fba*fbanom-I.^2*Inom^2*R.*t*tnom];
+% constraint = [constraint; fi*finom*snom./(t*tnom)<=vol*I*Inom];
+
+% constraint = [constraint; fba*fbanom<=fi*finom+fi.^2*finom^2.*t*tnom/(vol^2*snom)*R];
+
+
 constraint = [constraint; cone([(fba*fbanom-fi*finom)+vol^2*(t*tnom)/(snom*R), 2*fi*finom, ...
   (fba*fbanom-fi*finom)-vol^2*(t*tnom)/(snom*R)]')];
 
 %%  discharge battery
-constraint = [constraint; (diff(diffEb)/snom*Ebnom{i}<=-fba(1:nSteps-1)*fbanom)];
+constraint = [constraint; (diff(diffEb)/snom*Ebnom{i}<=-fba(1:nSteps-1)*finom)];
 
-% %max discharge and charge battery  --> needs tuning
+% %max discharge and charge battery  --> needs tuning to reality and curr. v
 constraint = [constraint; fi<=0.8]; 
 constraint = [constraint; fi>=-1.2];
 
-constraint = [constraint; f<=1];   
+constraint = [constraint; f<=1];    %needed due to relaxation of power constraint
 constraint = [constraint; f>=-1];
-
-constraint = [constraint; fba<=0.7]; 
-constraint = [constraint; fba>=-1.3];
 
 % SOC constraints
 constraint = [constraint; diffEb(end)>=0];
@@ -186,13 +194,12 @@ n=n+1;
 
 ax(3) = subplot(s,z,n);
 plot(double(fi)*fnom,'b');
+title('internal battery forces');
 hold on
 plot(double(f)*fnom,'--r');
 title('battery forces');
 grid on
 grid minor
-plot(double(fba)*fbanom,':k');
-title('battery forces');
 n=n+1;
 
 ax(4) = subplot(s,z,n);
