@@ -4,22 +4,21 @@ clc
 tic
 
 %% Add convex parser, solvers and packs
-addpath(genpath('C:\Users\friep\Documents\GitHub\Convex_opt'));
+addpath(genpath('C:\Users\friep\polybox\Shared\ST Prinz Friedrich\Convex_opt\Versions\22.07.2018_v7_fully_working_wo_weight'));
 
-stepsize=10;
+stepsize=1;
+cell_n=100;
 %% load data
-for i=1:stepsize:226    
+for i=1:stepsize:cell_n   
 
 CarData=load('fsg_car');
-
+CarData.res.c_d=0.62;
   CarData.massre.tot{i}=CarData.mass.tot-(226-i)*0.126;
     
 TrackData =  trackdata(CarData.massre.tot{i});
 snom=10;                       %spatial partition [m]
 [TrackData.e_kin_max_s] =spatialtrans(TrackData, snom);
 nSteps=length(TrackData.e_kin_max_s);
-
-
 
 
 
@@ -103,7 +102,7 @@ constraint = [constraint;...
 
 % % energy transformation in powertrain
 % a=6.5527e-05;     %f eff
-a= 4.1354e-06;      %p eff
+a= 2.6331e-06;      %p eff
 
 % constraint = [constraint; (diff(t)*tnom)/snom.*(fi(1:nSteps-1)*finom-f(1:nSteps-1)*fnom)>=a*f(1:nSteps-1).^2.*fnom^2];
 constraint = [constraint; cone([t*tnom/snom-f*fnom+fi*finom, 2*sqrt(a)*f*fnom, ...
@@ -131,7 +130,7 @@ constraint = [constraint; cone([(fba*fbanom-fi*finom)+vol^2*(t*tnom)/(snom*R), 2
   (fba*fbanom-fi*finom)-vol^2*(t*tnom)/(snom*R)]')];
 
 %%  discharge battery
-constraint = [constraint; (diff(diffEb)/snom*Ebnom{i}<=-fba(1:nSteps-1)*fbanom)];
+constraint = [constraint; (diff(diffEb)/snom*Ebnom{i}<=-fi(1:nSteps-1)*finom)];
 
 % %max discharge and charge battery  --> needs tuning
 constraint = [constraint; fi<=0.8]; 
@@ -144,16 +143,17 @@ constraint = [constraint; fba<=0.7];
 constraint = [constraint; fba>=-1.3];
 
 % SOC constraints
-constraint = [constraint; diffEb(end)>=0];
+constraint = [constraint; diffEb>=0];
 constraint = [constraint; diffEb<=1];
 constraint = [constraint; diffEb(1)==1];
 
+constraint = [constraint; t*tnom<=2.5e5];
 
 %cost function:
 costfcn = sum(t);
 
 options = sdpsettings('solver','ecos'); %ecos, sedumi 
-options.ecos.maxit = 100; 
+options.ecos.maxit = 200; 
 
 out = solvesdp(constraint,costfcn,options);
 
@@ -217,7 +217,7 @@ res{i}=sum(double(t)*tnom);          %human driver does it in 76.1328sec and bes
 end
 
 figure 
-plot(1:stepsize:226,cell2mat(res))
+plot(1:stepsize:cell_n,cell2mat(res))
 title('time with different # of batteries');
 xlabel('# batteries')
 ylabel('time [s]')

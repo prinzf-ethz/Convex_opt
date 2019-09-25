@@ -15,7 +15,7 @@ mass.driver=70;                 % kg
 
 %resistances
 res.c_r= 0.04;                  % - 
-res.c_d=0.63;                   % -
+res.c_d=1.32;                   % -
 res.Af=1.12;                    %[m2]  --> function of slip, v and downforce
 
 %% Actions
